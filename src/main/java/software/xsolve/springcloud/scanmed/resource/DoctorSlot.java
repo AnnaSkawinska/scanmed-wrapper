@@ -17,4 +17,6 @@ public class DoctorSlot {
 
 	@JsonSerialize(using = LocalDateTimeSerializer.class)
 	private LocalDateTime timeSlot;
+
+	private String address;
 }

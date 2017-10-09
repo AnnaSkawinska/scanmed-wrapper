@@ -16,9 +16,9 @@ import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.DomNode;
 import com.gargoylesoftware.htmlunit.html.DomNodeList;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.google.common.collect.ImmutableList;
 
 import software.xsolve.springcloud.scanmed.resource.DoctorSlot;
-import software.xsolve.springcloud.scanmed.resource.VisitResponse;
 import software.xsolve.springcloud.scanmed.service.LocalDateTimeConverter;
 
 @RestController //doWyczajenia
@@ -28,7 +28,7 @@ public class ScanmedController {
 	LocalDateTimeConverter localDateTimeConverter;
 
 	@RequestMapping("/scanmed")
-	public VisitResponse fetchScanmedResponse(
+	public List<DoctorSlot> fetchScanmedResponse(
 			@RequestParam(value="location", defaultValue = "") String location,
 			@RequestParam(value="specialty") String specialty) throws IOException, InterruptedException {
 
@@ -40,20 +40,18 @@ public class ScanmedController {
 
 			webClient.waitForBackgroundJavaScript(10000);
 
-			return VisitResponse.builder()
-					.doctorSlots(parseResults(page))
-					.build();
+			return parseResults(page);
 		}
 		catch (FailingHttpStatusCodeException exception) {
 			// one of page elements being fetched with ajax is not available - we don't mind
 		}
 
-		return VisitResponse.builder().build();
+		return ImmutableList.<DoctorSlot>builder().build();
 	}
 
 	private List<DoctorSlot>  parseResults(HtmlPage page) {
 		List<DoctorSlot> slots = new ArrayList<>();
-		DomNodeList<DomNode> resultNodes = page.querySelectorAll(".card-item");
+		DomNodeList<DomNode> resultNodes = page.querySelectorAll(".listTable");
 
 		for (DomNode resultNode : resultNodes) {
 			parseSlot(resultNode).ifPresent(slots::add);
@@ -65,10 +63,12 @@ public class ScanmedController {
 		DomNode nameNode = resultNode.querySelector(".c-i-name");
 		DomNode dateNode = resultNode.querySelector(".c-i-date");
 		DomNode timeNode = resultNode.querySelector(".c-i-time");
+		DomNode addressNode = resultNode.querySelector(".ltNazwa a");
 
-		if (dateNode != null && timeNode != null) {
+		if (dateNode != null && timeNode != null && addressNode != null) {
 			return Optional.of(DoctorSlot.builder()
 					.name(nameNode.asText())
+					.address(addressNode.asText())
 					.timeSlot(localDateTimeConverter.convert(dateNode.asText(), timeNode.asText())).build());
 		} else {
 			return Optional.empty();
